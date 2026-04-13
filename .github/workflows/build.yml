@@ -63,6 +63,7 @@ jobs:
         uses: microsoft/setup-msbuild@v2
 
       - name: Build DLL
+        shell: cmd
         run: |
           msbuild TextExpansionKeyboard.sln ^
             /p:Configuration=Release ^
