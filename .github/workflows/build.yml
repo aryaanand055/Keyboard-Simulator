@@ -1,0 +1,61 @@
+# existing content goes here
+# Update this section to change msvc_platform from Win32 to x86
+  x86:
+    msvc_platform: x86
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    permissions:
+      contents: write
