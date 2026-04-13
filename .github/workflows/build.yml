@@ -6,9 +6,11 @@ on:
       - main
     tags:
       - "v*"
+
   pull_request:
     branches:
       - main
+
   workflow_dispatch:
 
 permissions:
@@ -22,6 +24,9 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+
+      - name: Install compiler
+        run: sudo apt-get update && sudo apt-get install -y g++
 
       - name: Compile tests
         run: |
@@ -39,6 +44,7 @@ jobs:
     runs-on: windows-latest
 
     strategy:
+      fail-fast: false
       matrix:
         include:
           - platform: x64
@@ -46,7 +52,7 @@ jobs:
             output_path: x64/Release/TextExpansionKeyboard.dll
 
           - platform: x86
-            msvc_platform: Win32
+            msvc_platform: x86
             output_path: Win32/Release/TextExpansionKeyboard.dll
 
     steps:
@@ -56,13 +62,21 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Build DLL (Release)
-        run: >
-          msbuild TextExpansionKeyboard.sln
-          /p:Configuration=Release
-          /p:Platform="${{ matrix.msvc_platform }}"
+      - name: Build DLL
+        run: |
+          msbuild TextExpansionKeyboard.sln ^
+            /p:Configuration=Release ^
+            /p:Platform=${{ matrix.msvc_platform }}
 
-      - name: Upload build artifact
+      - name: Verify output exists
+        shell: powershell
+        run: |
+          if (!(Test-Path "${{ matrix.output_path }}")) {
+            Write-Error "Build output not found: ${{ matrix.output_path }}"
+            exit 1
+          }
+
+      - name: Upload DLL Artifact
         uses: actions/upload-artifact@v4
         with:
           name: build-${{ matrix.platform }}
@@ -78,28 +92,47 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Download x64 build
+      - name: Download x64 artifact
         uses: actions/download-artifact@v4
         with:
           name: build-x64
-          path: dist/x64
+          path: release/x64
 
-      - name: Download x86 build
+      - name: Download x86 artifact
         uses: actions/download-artifact@v4
         with:
           name: build-x86
-          path: dist/x86
+          path: release/x86
+
+      - name: Show files
+        run: find release
 
       - name: Create ZIP package
         run: |
-          mkdir release
-          cp -r dist/x64 release/
-          cp -r dist/x86 release/
           cd release
           zip -r TextExpansionKeyboard.zip .
 
-      - name: Upload Release Artifact
+      - name: Upload Package Artifact
         uses: actions/upload-artifact@v4
         with:
           name: keyboard-release
           path: release/TextExpansionKeyboard.zip
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download packaged ZIP
+        uses: actions/download-artifact@v4
+        with:
+          name: keyboard-release
+          path: final
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: final/TextExpansionKeyboard.zip
+          generate_release_notes: true
