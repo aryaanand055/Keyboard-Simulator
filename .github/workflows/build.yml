@@ -39,21 +39,9 @@ jobs:
         run: ./run_tests
 
   build:
-    name: Build ${{ matrix.platform }}
+    name: Build x64
     needs: test
     runs-on: windows-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: x64
-            msvc_platform: x64
-            output_path: x64/Release/TextExpansionKeyboard.dll
-
-          - platform: x86
-            msvc_platform: x86
-            output_path: Win32/Release/TextExpansionKeyboard.dll
 
     steps:
       - name: Checkout source
@@ -67,21 +55,21 @@ jobs:
         run: |
           msbuild TextExpansionKeyboard.sln ^
             /p:Configuration=Release ^
-            /p:Platform=${{ matrix.msvc_platform }}
+            /p:Platform=x64
 
       - name: Verify output exists
         shell: powershell
         run: |
-          if (!(Test-Path "${{ matrix.output_path }}")) {
-            Write-Error "Build output not found: ${{ matrix.output_path }}"
+          if (!(Test-Path "x64/Release/TextExpansionKeyboard.dll")) {
+            Write-Error "Build output not found"
             exit 1
           }
 
       - name: Upload DLL Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.platform }}
-          path: ${{ matrix.output_path }}
+          name: build-x64
+          path: x64/Release/TextExpansionKeyboard.dll
           if-no-files-found: error
 
   package:
@@ -90,23 +78,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
-
       - name: Download x64 artifact
         uses: actions/download-artifact@v4
         with:
           name: build-x64
           path: release/x64
-
-      - name: Download x86 artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: build-x86
-          path: release/x86
-
-      - name: Show files
-        run: find release
 
       - name: Create ZIP package
         run: |
