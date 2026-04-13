@@ -1,0 +1,48 @@
+# Visual Studio generated files
+.vs/
+*.suo
+*.user
+*.sln.docstates
+*.ncb
+*.opensdf
+*.sdf
+
+# Build results
+Debug/
+Release/
+x64/
+x86/
+[Bb]uild/
+[Oo]ut/
+*.obj
+*.pdb
+*.lib
+*.exp
+*.dll
+*.exe
+*.ilk
+*.idb
+*.log
+*.tlog
+*.lastbuildstate
+*.pch
+*.ipch
+
+# NuGet
+packages/
+
+# Installer output
+installer/*.msi
+installer/*.exe
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~

@@ -1,0 +1,28 @@
+{
+    "description": "Text Expansion Keyboard - Default Dictionary",
+    "trigger": "$#$",
+    "maxShortcutLength": 3,
+    "entries": {
+        "gom": "Good morning",
+        "gm": "Good morning",
+        "ge": "Good evening",
+        "gn": "Good night",
+        "ty": "Thank you",
+        "thx": "Thanks",
+        "tnx": "Thank you for contacting support",
+        "brg": "Best regards",
+        "br": "Best regards",
+        "yw": "You're welcome",
+        "pls": "Please",
+        "omw": "On my way",
+        "idk": "I don't know",
+        "np": "No problem",
+        "ttl": "Talk to you later",
+        "fyi": "For your information",
+        "eta": "Estimated time of arrival",
+        "bp": "Blood pressure",
+        "sig": "Sincerely,\nText Expansion Keyboard User",
+        "adr": "21, Main Street, Chennai",
+        "met": "Meeting scheduled for tomorrow"
+    }
+}
