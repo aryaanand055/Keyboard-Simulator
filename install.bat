@@ -18,11 +18,14 @@ if %errorlevel% neq 0 (
 )
 
 REM --- Detect architecture ---
-if "%PROCESSOR_ARCHITECTURE%"=="AMD64" (
-    set "ARCH=x64"
-) else (
-    set "ARCH=x86"
-)
+REM Use PROCESSOR_ARCHITEW6432 as well so 32-bit cmd.exe on 64-bit Windows
+REM does not incorrectly report x86. Treat ARM64 as a 64-bit OS and prefer
+REM the x64 DLL when available.
+set "ARCH=x86"
+if /I "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "ARCH=x64"
+if /I "%PROCESSOR_ARCHITEW6432%"=="AMD64" set "ARCH=x64"
+if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "ARCH=x64"
+if /I "%PROCESSOR_ARCHITEW6432%"=="ARM64" set "ARCH=x64"
 
 set "DLL_PATH=%~dp0%ARCH%\TextExpansionKeyboard.dll"
 
