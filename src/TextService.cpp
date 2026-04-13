@@ -1,5 +1,94 @@
 #include "TextService.h"
 
+// ===========================================================================
+// EditSession Implementation
+// ===========================================================================
+
+EditSession::EditSession(ITfContext* pContext, TextService* pTextService,
+                         const std::wstring& shortcut, const std::wstring& expansion)
+    : m_refCount(1)
+    , m_pContext(pContext)
+    , m_pTextService(pTextService)
+    , m_shortcut(shortcut)
+    , m_expansion(expansion)
+{
+    if (m_pContext)
+        m_pContext->AddRef();
+}
+
+EditSession::~EditSession()
+{
+    if (m_pContext)
+        m_pContext->Release();
+}
+
+STDMETHODIMP EditSession::QueryInterface(REFIID riid, void** ppvObj)
+{
+    if (ppvObj == nullptr)
+        return E_INVALIDARG;
+
+    *ppvObj = nullptr;
+
+    if (IsEqualIID(riid, IID_IUnknown) || IsEqualIID(riid, IID_ITfEditSession)) {
+        *ppvObj = static_cast<ITfEditSession*>(this);
+        AddRef();
+        return S_OK;
+    }
+
+    return E_NOINTERFACE;
+}
+
+STDMETHODIMP_(ULONG) EditSession::AddRef()
+{
+    return InterlockedIncrement(&m_refCount);
+}
+
+STDMETHODIMP_(ULONG) EditSession::Release()
+{
+    LONG count = InterlockedDecrement(&m_refCount);
+    if (count == 0)
+        delete this;
+    return count;
+}
+
+STDMETHODIMP EditSession::DoEditSession(TfEditCookie ec)
+{
+    if (m_pContext == nullptr)
+        return E_FAIL;
+
+    // Total characters to delete: shortcut length + trigger length ("$#$" = 3)
+    LONG charsToDelete = static_cast<LONG>(m_shortcut.size() + InputBuffer::TRIGGER_LEN);
+
+    // Use ITfInsertAtSelection to get the current selection/insertion point
+    ITfInsertAtSelection* pInsert = nullptr;
+    HRESULT hr = m_pContext->QueryInterface(IID_ITfInsertAtSelection,
+                                            reinterpret_cast<void**>(&pInsert));
+    if (FAILED(hr) || pInsert == nullptr)
+        return E_FAIL;
+
+    // Get the current insertion range (query only, no modification yet)
+    ITfRange* pRange = nullptr;
+    hr = pInsert->InsertTextAtSelection(ec, TF_IAS_QUERYONLY, nullptr, 0, &pRange);
+
+    if (SUCCEEDED(hr) && pRange != nullptr) {
+        // Move the start of the range back by charsToDelete to cover the shortcut + trigger
+        LONG shifted = 0;
+        pRange->ShiftStart(ec, -charsToDelete, &shifted, nullptr);
+
+        // Replace the selected range with the expansion text
+        pRange->SetText(ec, 0, m_expansion.c_str(), static_cast<LONG>(m_expansion.size()));
+
+        pRange->Release();
+    }
+
+    pInsert->Release();
+    return S_OK;
+}
+
+// ===========================================================================
+// TextService Implementation
+// ===========================================================================
+
 TextService::TextService()
     : m_refCount(1)
     , m_pThreadMgr(nullptr)
@@ -161,7 +250,7 @@ STDMETHODIMP TextService::OnKeyDown(ITfContext* pContext, WPARAM wParam,
         std::wstring expansion;
         if (m_dictionary.lookup(shortcut, expansion)) {
             // Calculate the total length to delete: shortcut + trigger "$#$"
-            PerformExpansion(pContext, shortcut, expansion);
+            RequestExpansion(pContext, shortcut, expansion);
             if (pfEaten)
                 *pfEaten = TRUE;
         }
@@ -284,46 +373,18 @@ void TextService::UninitThreadMgrEventSink()
     m_dwThreadMgrEventSinkCookie = TF_INVALID_COOKIE;
 }
 
-void TextService::PerformExpansion(ITfContext* pContext, const std::wstring& shortcut,
+void TextService::RequestExpansion(ITfContext* pContext, const std::wstring& shortcut,
                                    const std::wstring& expansion)
 {
     if (pContext == nullptr)
         return;
 
-    // Total characters to delete: shortcut length + trigger length ("$#$" = 3)
-    LONG charsToDelete = static_cast<LONG>(shortcut.size() + InputBuffer::TRIGGER_LEN);
-
-    // Use ITfInsertAtSelection to manipulate text
-    ITfInsertAtSelection* pInsert = nullptr;
-    HRESULT hr = pContext->QueryInterface(IID_ITfInsertAtSelection,
-                                          reinterpret_cast<void**>(&pInsert));
-    if (FAILED(hr) || pInsert == nullptr)
+    // Create an edit session to perform the text replacement with a valid edit cookie
+    EditSession* pEditSession = new (std::nothrow) EditSession(pContext, this, shortcut, expansion);
+    if (pEditSession == nullptr)
         return;
 
-    // Request an edit session to perform the replacement
-    // In a full implementation, this would use ITfEditSession
-    // For now, we use a simplified approach with ITfRange
-
-    ITfRange* pRange = nullptr;
-    hr = pInsert->InsertTextAtSelection(
-        TF_AE_NONE,            // edit cookie placeholder
-        TF_IAS_QUERYONLY,
-        nullptr,
-        0,
-        &pRange);
-
-    if (SUCCEEDED(hr) && pRange != nullptr) {
-        // Move the start of the range back by charsToDelete
-        LONG shifted = 0;
-        pRange->ShiftStart(TF_AE_NONE, -charsToDelete, &shifted, nullptr);
-
-        // Set the text of the range to the expansion
-        pRange->SetText(TF_AE_NONE, 0,
-                        expansion.c_str(),
-                        static_cast<LONG>(expansion.size()));
-
-        pRange->Release();
-    }
-
-    pInsert->Release();
+    HRESULT hr;
+    pContext->RequestEditSession(m_tfClientId, pEditSession, TF_ES_READWRITE | TF_ES_ASYNC, &hr);
+    pEditSession->Release();
 }

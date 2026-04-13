@@ -48,7 +48,7 @@ void ExpansionDictionary::loadDefaults()
     addEntry(L"fyi", L"For your information");
     addEntry(L"eta", L"Estimated time of arrival");
     addEntry(L"bp",  L"Blood pressure");
-    addEntry(L"sig", L"Sincerely,\r\nText Expansion Keyboard User");
+    addEntry(L"sig", L"Sincerely,\nText Expansion Keyboard User");
 }
 
 size_t ExpansionDictionary::size() const

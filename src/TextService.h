@@ -4,6 +4,34 @@
 #include "InputBuffer.h"
 #include "ExpansionDictionary.h"
 
+// Forward declaration
+class TextService;
+
+// EditSession implements ITfEditSession to perform text replacement
+// within a proper edit session callback that provides a valid edit cookie.
+class EditSession : public ITfEditSession
+{
+public:
+    EditSession(ITfContext* pContext, TextService* pTextService,
+                const std::wstring& shortcut, const std::wstring& expansion);
+    virtual ~EditSession();
+
+    // IUnknown methods
+    STDMETHODIMP QueryInterface(REFIID riid, void** ppvObj) override;
+    STDMETHODIMP_(ULONG) AddRef() override;
+    STDMETHODIMP_(ULONG) Release() override;
+
+    // ITfEditSession methods
+    STDMETHODIMP DoEditSession(TfEditCookie ec) override;
+
+private:
+    LONG m_refCount;
+    ITfContext* m_pContext;
+    TextService* m_pTextService;
+    std::wstring m_shortcut;
+    std::wstring m_expansion;
+};
+
 // TextService implements the TSF text input processor.
 // It handles activation/deactivation, key events, and text expansion.
 class TextService : public ITfTextInputProcessorEx,
@@ -41,13 +69,16 @@ public:
     STDMETHODIMP OnPushContext(ITfContext* pContext) override;
     STDMETHODIMP OnPopContext(ITfContext* pContext) override;
 
+    // Called by EditSession to get the client ID
+    TfClientId GetClientId() const { return m_tfClientId; }
+
 private:
     // Internal helpers
     BOOL InitKeyEventSink();
     void UninitKeyEventSink();
     BOOL InitThreadMgrEventSink();
     void UninitThreadMgrEventSink();
-    void PerformExpansion(ITfContext* pContext, const std::wstring& shortcut, const std::wstring& expansion);
+    void RequestExpansion(ITfContext* pContext, const std::wstring& shortcut, const std::wstring& expansion);
 
     LONG m_refCount;
     ITfThreadMgr* m_pThreadMgr;
